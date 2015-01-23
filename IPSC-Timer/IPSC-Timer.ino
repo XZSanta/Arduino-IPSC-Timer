@@ -265,14 +265,16 @@ void displayMenu() {
 void on_item3_selected(MenuItem * p_menu_item) {
   lcd.clear();
   lcd.setCursor(0, 1);
-  lcd.print("On Selected");
+  lcd.print("Delay On");
+  DelayedStart = true;
   delay(1500);
 }
 
 void on_item4_selected(MenuItem * p_menu_item) {
   lcd.clear();
   lcd.setCursor(0, 1);
-  lcd.print("Off Selected");
+  lcd.print("Delay Off");
+  DelayedStart = false;
   delay(1500);
 }
 
