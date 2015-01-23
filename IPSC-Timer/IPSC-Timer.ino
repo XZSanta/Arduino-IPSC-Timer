@@ -25,7 +25,7 @@ Menu mu1("Start Delay");
 MenuItem mu1_mi1("On (3 sec.)");
 MenuItem mu1_mi2("Off");
 MenuItem mu1_mi3("..");
-Menu mu2("Echo Canceling");
+Menu mu2("Echo-Cancel");
 MenuItem mu2_mi1("10 ms");
 MenuItem mu2_mi2("20 ms");
 MenuItem mu2_mi3("..");
@@ -90,7 +90,7 @@ void loop() {
 
   switch (State) {
     case 0:  //Ready state
-      if (StartButton.wasReleased()){
+      if (StartButton.wasReleased()) {
         State = 5;
         StartTimer();
       }
@@ -132,10 +132,10 @@ void loop() {
         State = 0;
       break;
 
-//    case 4: //intermediate state before Running in order to detect button release after switching state
-//      StartTimer();
-//      State = 5;
-//      break;
+      //    case 4: //intermediate state before Running in order to detect button release after switching state
+      //      StartTimer();
+      //      State = 5;
+      //      break;
 
     case 5: //Timer running!
       DetectShots();
@@ -164,7 +164,7 @@ void DetectShots() {
         if (ShotCounter == 1) { //Only on first shot
           FirstShotTime = LatestShotTime;
         }
-        
+
         if (ShotCounter > 1) {
           SplitShotTime = (LatestShotTime - PrevShotTime);
           if (ShotCounter == 2) {
@@ -202,11 +202,10 @@ void ResetTimer() {
 
 
 void DisplayTimer() {
-  //lcd.clear();
+  lcd.setFontSize(FONT_SIZE_MEDIUM);
   lcd.setCursor(0, 0);
   lcd.println((FirstShotTime), 2);
 
-  //lcd.setTextColor(WHITE);
   if (ShotCounter < 10) {
     XPos = 58;
   }
@@ -216,12 +215,10 @@ void DisplayTimer() {
   lcd.setCursor(XPos, 0);
   lcd.println(ShotCounter);
 
-  //lcd.setTextColor(BLACK, WHITE);
   lcd.setCursor(80, 0);
   lcd.println((BestSplitShotTime), 2);
 
-  //lcd.setTextSize(3);
-  //lcd.setTextColor(WHITE);
+  lcd.setFontSize(FONT_SIZE_LARGE);
   if (LatestShotTime < 10) {
     XPos = 28;
   }
@@ -233,7 +230,6 @@ void DisplayTimer() {
   }
   lcd.setCursor(XPos, 4);
   lcd.println((LatestShotTime), 2);
-  //lcd.display();
 }
 
 void Beep() {
@@ -243,16 +239,10 @@ void Beep() {
 }
 
 void displayMenu() {
-  //lcd.clear();
   lcd.setCursor(0, 0);
-  //lcd.setTextSize(1);
-  //lcd.setTextColor(WHITE);
-  //lcd.display();
-  lcd.println("");
-  // Display the menu
+  lcd.setFontSize(FONT_SIZE_MEDIUM);
   Menu const* cp_menu = ms.get_current_menu();
 
-  //lcd.print("Current menu name: ");
   lcd.println(cp_menu->get_name());
 
   MenuComponent const* cp_menu_sel = cp_menu->get_selected();
@@ -272,68 +262,33 @@ void displayMenu() {
 }
 
 // Menu callback function
-// In this example all menu items use the same callback.
-
-void on_item1_selected(MenuItem* p_menu_item)
-{
+void on_item3_selected(MenuItem * p_menu_item) {
   lcd.clear();
-  //lcd.setFontSize(FONT_SIZE_MEDIUM);
   lcd.setCursor(0, 1);
-  lcd.print("Item1 Selected  ");
-  //lcd.display();
-
-  delay(1500); // so we can look the result on the LCD
+  lcd.print("On Selected");
+  delay(1500);
 }
 
-void on_item2_selected(MenuItem* p_menu_item)
-{
+void on_item4_selected(MenuItem * p_menu_item) {
   lcd.clear();
-  //lcd.setFontSize(FONT_SIZE_MEDIUM);
   lcd.setCursor(0, 1);
-  lcd.print("Item2 Selected  ");
-  //lcd.display();
-
-  delay(1500); // so we can look the result on the LCD
+  lcd.print("Off Selected");
+  delay(1500);
 }
 
-void on_item3_selected(MenuItem* p_menu_item)
-{
-  lcd.clear();
-  //lcd.setFontSize(FONT_SIZE_MEDIUM);
-  lcd.setCursor(0, 1);
-  lcd.print("Item3 Selected  ");
-  //lcd.display();
-
-  delay(1500); // so we can look the result on the LCD
-}
-
-void on_item4_selected(MenuItem* p_menu_item)
-{
-  lcd.clear();
-  //lcd.setFontSize(FONT_SIZE_MEDIUM);
-  lcd.setCursor(0, 1);
-  lcd.print("Item3 Selected  ");
-  //lcd.display();
-
-  delay(1500); // so we can look the result on the LCD
-}
-
-void on_item5_selected(MenuItem* p_menu_item) {
+void on_item5_selected(MenuItem * p_menu_item) {
   ms.back();
   displayMenu();
 }
 
-//void on_item5_selected(MenuItem* p_menu_item) {
-//  displayMenu();
-//}
-
-void on_item6_selected(MenuItem* p_menu_item) {
+void on_item6_selected(MenuItem * p_menu_item) {
   displayMenu();
 }
 
-void on_item7_selected(MenuItem* p_menu_item) {
+void on_item7_selected(MenuItem * p_menu_item) {
   displayMenu();
 }
-void on_item8_selected(MenuItem* p_menu_item) {
+void on_item8_selected(MenuItem * p_menu_item) {
+  ms.back();
   displayMenu();
 }
