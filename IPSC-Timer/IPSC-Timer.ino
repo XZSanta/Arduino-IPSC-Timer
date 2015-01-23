@@ -1,14 +1,12 @@
-#include <SPI.h>
 #include <Wire.h>
 #include <Button.h> // Jack Christensens Button library https://github.com/JChristensen/Button
-#include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
+#include <MenuSystem.h>
+#include <MicroLCD.h>
 
 // Nano SDA = A4
 // Nano SCL = A5
 
-#define OLED_RESET 4
-Adafruit_SSD1306 display(OLED_RESET);
+LCD_SSD1306 lcd; /* for SSD1306 OLED module */
 
 // For buttons
 #define PULLUP true
@@ -20,9 +18,22 @@ Button StartButton(3, PULLUP, INVERT, DEBOUNCE_MS);
 Button UpButton(5, PULLUP, INVERT, DEBOUNCE_MS);
 Button DownButton(4, PULLUP, INVERT, DEBOUNCE_MS);
 
+// Menu variables
+MenuSystem ms;
+Menu mm("Settings");
+Menu mu1("Start Delay");
+MenuItem mu1_mi1("On (3 sec.)");
+MenuItem mu1_mi2("Off");
+MenuItem mu1_mi3("..");
+Menu mu2("Echo Canceling");
+MenuItem mu2_mi1("10 ms");
+MenuItem mu2_mi2("20 ms");
+MenuItem mu2_mi3("..");
+
 // this constant won't change:
 const int DetectorPin = 2;
-const int BuzzerPin = 8;
+//const int BuzzerPin = 8; //
+const int BuzzerPin = 13; //Quiet night-mode for testing wile the family is asleep
 
 // Variables will change:
 int ShotCounter = 0;
@@ -32,7 +43,8 @@ int TimerState = 0;
 int XPos = 0;
 int DelayedStart = false;
 int DelayedStartTime = 3000;
-int State=0;
+
+int State = 0;
 
 // the following variables are long's because the time, measured in miliseconds,
 // will quickly become a bigger number than can be stored in an int.
@@ -46,122 +58,134 @@ float SplitShotTime = 0;
 float BestSplitShotTime = 0;
 
 void setup() {
-  // initialize the fetector pin as a input:
+  // initialize the detector pin as a input:
   pinMode(DetectorPin, INPUT);
   pinMode(BuzzerPin, OUTPUT);
 
   // initialize serial communication:
   //Serial.begin(9600);
-  
-  display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
-  UpdateDisplay ();
+
+  // Menu setup
+  mm.add_menu(&mu1);
+  mu1.add_item(&mu1_mi1, &on_item3_selected);
+  mu1.add_item(&mu1_mi2, &on_item4_selected);
+  mu1.add_item(&mu1_mi3, &on_item5_selected); //..
+  mm.add_menu(&mu2);
+  mu2.add_item(&mu2_mi1, &on_item6_selected);
+  mu2.add_item(&mu2_mi2, &on_item7_selected);
+  mu2.add_item(&mu2_mi3, &on_item8_selected); //..
+  ms.set_root_menu(&mm);
+
+  lcd.begin();
+  lcd.clear();
+  DisplayTimer() ;
 }
 
 void loop() {
   DetectorState = digitalRead(DetectorPin);
-  
+
   StartButton.read();
   UpButton.read();
   DownButton.read();
- 
+
   switch (State) {
-    case 0:  //Ready state   
-      if (StartButton.wasReleased())
-        State = 4;
-      else if (StartButton.pressedFor(LONG_PRESS))
+    case 0:  //Ready state
+      if (StartButton.wasReleased()){
+        State = 5;
+        StartTimer();
+      }
+      else if (StartButton.pressedFor(LONG_PRESS)) {
         State = 1;
+        lcd.clear();
+        displayMenu();
+      }
       break;
-      
-    case 1: //intermediate state in order to detect button release after switching state 
-      Serial.println("To Setup");
+
+    case 1: //intermediate state before Setup in order to detect button release after switching state
       if (StartButton.wasReleased())
         State = 2;
       break;
-      
+
     case 2: //Setup
-      if (StartButton.wasReleased())
-        Serial.println("Setup Function");
-      else if (StartButton.pressedFor(LONG_PRESS))
+      if (UpButton.wasPressed()) {
+        ms.prev();
+        displayMenu();
+      }
+      if (DownButton.wasPressed()) {
+        ms.next();
+        displayMenu();
+      }
+      if (StartButton.wasReleased()) {
+        ms.select();
+        lcd.clear();
+        displayMenu();
+      }
+      if (StartButton.pressedFor(LONG_PRESS)) {
         State = 3;
-        break;
-      
-    case 3: //intermediate state in order to detect button release after switching state 
-      Serial.println("To Ready");
+        lcd.clear();
+        DisplayTimer();
+      }
+      break;
+
+    case 3: //intermediate state before Ready in order to detect button release after switching state
       if (StartButton.wasReleased())
         State = 0;
       break;
-      
-    case 4:
-      State = 5;
-      break;
-      
-     case 5: //Timer running!
-      if (StartButton.wasReleased())
-        Serial.println("Running");
-      else if (StartButton.pressedFor(LONG_PRESS))
+
+//    case 4: //intermediate state before Running in order to detect button release after switching state
+//      StartTimer();
+//      State = 5;
+//      break;
+
+    case 5: //Timer running!
+      DetectShots();
+      if (StartButton.pressedFor(LONG_PRESS)) {
         State = 3;
+        lcd.clear();
+        ResetTimer();
+        DisplayTimer();
+      }
       break;
-    } //End of switch-machine 
 
-if (State == 0){
-}
-if (State == 1){
-  UpdateDisplaySetup();
-}
-if (State == 2){
-}
-if (State == 3){
-  ResetTimer();
-  UpdateDisplay ();
-}
-if (State == 4){
-  StartTimer();
-}
-if (State == 5){
-  DetectShots();
-  //UpdateDisplay ();
+  } //End of switch-machine
+
+  LastDetectorState = DetectorState;
 }
 
-LastDetectorState = DetectorState;
-}
+void DetectShots() {
+  if (DetectorState != LastDetectorState) {
+    if (millis() > lastDebounceTime) {
+      if (DetectorState == HIGH) {
+        lastDebounceTime = (millis() + debounceDelay);
 
-void DetectShots(){
-  
-    if (DetectorState != LastDetectorState){
-     if (millis() > lastDebounceTime) {
-    if (DetectorState == HIGH) {
-      lastDebounceTime = (millis()+debounceDelay);
-      
-      LatestShotTime = (float((millis()-StartTime))/1000);
-      ShotCounter++;
-      
-      if (ShotCounter == 1) { //Only on first shot
-        FirstShotTime = LatestShotTime;
-      }
-      
-      
-      
-      if (ShotCounter > 1){
-        SplitShotTime = (LatestShotTime - PrevShotTime);
-        if (ShotCounter == 2){
-           BestSplitShotTime = SplitShotTime;       
+        LatestShotTime = (float((millis() - StartTime)) / 1000);
+        ShotCounter++;
+
+        if (ShotCounter == 1) { //Only on first shot
+          FirstShotTime = LatestShotTime;
         }
-        if ((SplitShotTime) < (BestSplitShotTime)) {
-          BestSplitShotTime = SplitShotTime;
+        
+        if (ShotCounter > 1) {
+          SplitShotTime = (LatestShotTime - PrevShotTime);
+          if (ShotCounter == 2) {
+            BestSplitShotTime = SplitShotTime;
+          }
+          if ((SplitShotTime) < (BestSplitShotTime)) {
+            BestSplitShotTime = SplitShotTime;
+          }
         }
+
+        DisplayTimer();
+        PrevShotTime = LatestShotTime;
       }
-      
-      UpdateDisplay();
-      PrevShotTime = LatestShotTime;
     }
-   }
   }
 
-  
+
 }
 
 void StartTimer() {
-  if (DelayedStart == true){
+  if (DelayedStart == true) {
     delay (DelayedStartTime);
   }
   StartTime = millis();
@@ -176,55 +200,140 @@ void ResetTimer() {
   BestSplitShotTime = 0;
 }
 
-void UpdateDisplaySetup() {
-  display.clearDisplay();
-  display.setTextSize(2);
-  display.setTextColor(WHITE);
-  display.setCursor(35,0);
-  display.println("SETUP");
-  display.display();
-}
 
-void UpdateDisplay() {
-  display.clearDisplay();
-  display.setTextSize(2);
-  
-  display.setTextColor(BLACK, WHITE);
-  display.setCursor(0,0);
-  display.println((FirstShotTime),2);
-  
-  display.setTextColor(WHITE);
-  if (ShotCounter < 10){
+void DisplayTimer() {
+  //lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.println((FirstShotTime), 2);
+
+  //lcd.setTextColor(WHITE);
+  if (ShotCounter < 10) {
     XPos = 58;
   }
   else {
     XPos = 51;
-  } 
-  display.setCursor(XPos,0);
-  display.println(ShotCounter);
-  
-  display.setTextColor(BLACK, WHITE);
-  display.setCursor(80,0);
-  display.println((BestSplitShotTime),2);
-  
-  display.setTextSize(3);
-  display.setTextColor(WHITE);
-    if (LatestShotTime < 10){
-      XPos = 28;
-    }
-    else if (LatestShotTime < 100){
-      XPos = 18;
-    }
-    else {
-      XPos = 8;
-    }
-  display.setCursor(XPos,35);
-  display.println((LatestShotTime),2);
-  display.display();
+  }
+  lcd.setCursor(XPos, 0);
+  lcd.println(ShotCounter);
+
+  //lcd.setTextColor(BLACK, WHITE);
+  lcd.setCursor(80, 0);
+  lcd.println((BestSplitShotTime), 2);
+
+  //lcd.setTextSize(3);
+  //lcd.setTextColor(WHITE);
+  if (LatestShotTime < 10) {
+    XPos = 28;
+  }
+  else if (LatestShotTime < 100) {
+    XPos = 18;
+  }
+  else {
+    XPos = 8;
+  }
+  lcd.setCursor(XPos, 4);
+  lcd.println((LatestShotTime), 2);
+  //lcd.display();
 }
 
 void Beep() {
   digitalWrite(BuzzerPin, HIGH);
   delay(700);
   digitalWrite(BuzzerPin, LOW);
+}
+
+void displayMenu() {
+  //lcd.clear();
+  lcd.setCursor(0, 0);
+  //lcd.setTextSize(1);
+  //lcd.setTextColor(WHITE);
+  //lcd.display();
+  lcd.println("");
+  // Display the menu
+  Menu const* cp_menu = ms.get_current_menu();
+
+  //lcd.print("Current menu name: ");
+  lcd.println(cp_menu->get_name());
+
+  MenuComponent const* cp_menu_sel = cp_menu->get_selected();
+  for (int i = 0; i < cp_menu->get_num_menu_components(); ++i)
+  {
+    MenuComponent const* cp_m_comp = cp_menu->get_menu_component(i);
+    if (cp_menu_sel == cp_m_comp) {
+      lcd.print("> ");
+    }
+    else {
+      lcd.print("  ");
+    }
+    lcd.print(cp_m_comp->get_name());
+
+    lcd.println("");
+  }
+}
+
+// Menu callback function
+// In this example all menu items use the same callback.
+
+void on_item1_selected(MenuItem* p_menu_item)
+{
+  lcd.clear();
+  //lcd.setFontSize(FONT_SIZE_MEDIUM);
+  lcd.setCursor(0, 1);
+  lcd.print("Item1 Selected  ");
+  //lcd.display();
+
+  delay(1500); // so we can look the result on the LCD
+}
+
+void on_item2_selected(MenuItem* p_menu_item)
+{
+  lcd.clear();
+  //lcd.setFontSize(FONT_SIZE_MEDIUM);
+  lcd.setCursor(0, 1);
+  lcd.print("Item2 Selected  ");
+  //lcd.display();
+
+  delay(1500); // so we can look the result on the LCD
+}
+
+void on_item3_selected(MenuItem* p_menu_item)
+{
+  lcd.clear();
+  //lcd.setFontSize(FONT_SIZE_MEDIUM);
+  lcd.setCursor(0, 1);
+  lcd.print("Item3 Selected  ");
+  //lcd.display();
+
+  delay(1500); // so we can look the result on the LCD
+}
+
+void on_item4_selected(MenuItem* p_menu_item)
+{
+  lcd.clear();
+  //lcd.setFontSize(FONT_SIZE_MEDIUM);
+  lcd.setCursor(0, 1);
+  lcd.print("Item3 Selected  ");
+  //lcd.display();
+
+  delay(1500); // so we can look the result on the LCD
+}
+
+void on_item5_selected(MenuItem* p_menu_item) {
+  ms.back();
+  displayMenu();
+}
+
+//void on_item5_selected(MenuItem* p_menu_item) {
+//  displayMenu();
+//}
+
+void on_item6_selected(MenuItem* p_menu_item) {
+  displayMenu();
+}
+
+void on_item7_selected(MenuItem* p_menu_item) {
+  displayMenu();
+}
+void on_item8_selected(MenuItem* p_menu_item) {
+  displayMenu();
 }
