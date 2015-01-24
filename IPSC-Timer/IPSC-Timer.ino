@@ -2,6 +2,7 @@
 #include <Button.h> // Jack Christensens Button library https://github.com/JChristensen/Button
 #include <MenuSystem.h>
 #include <MicroLCD.h>
+#include <EEPROM.h>
 
 // Nano SDA = A4
 // Nano SCL = A5
@@ -32,8 +33,8 @@ MenuItem mu2_mi3("..");
 
 // this constant won't change:
 const int DetectorPin = 2;
-//const int BuzzerPin = 8; //
-const int BuzzerPin = 13; //Quiet night-mode for testing wile the family is asleep
+const int BuzzerPin = 8; //
+//const int BuzzerPin = 13; //Quiet night-mode for testing wile the family is asleep
 
 // Variables will change:
 int ShotCounter = 0;
@@ -41,7 +42,7 @@ int DetectorState = 0;
 int LastDetectorState = 1;
 int TimerState = 0;
 int XPos = 0;
-int DelayedStart = false;
+int DelayedStart = EEPROM.read(1);
 int DelayedStartTime = 3000;
 
 int State = 0;
@@ -218,7 +219,6 @@ void DisplayTimer() {
   lcd.setCursor(80, 0);
   lcd.println((BestSplitShotTime), 2);
 
-  lcd.setFontSize(FONT_SIZE_LARGE);
   if (LatestShotTime < 10) {
     XPos = 28;
   }
@@ -228,10 +228,17 @@ void DisplayTimer() {
   else {
     XPos = 8;
   }
+  //lcd.setFontSize(FONT_SIZE_MEDIUM);
   lcd.setCursor(XPos, 4);
   lcd.println((LatestShotTime), 2);
+//  lcd.printLong((LatestShotTime)* 100); //Test of number only font
 }
 
+void ClearEEPROM() {
+  for (int i = 0; i < 512; i++)
+    EEPROM.write(i, 0);
+  }
+  
 void Beep() {
   digitalWrite(BuzzerPin, HIGH);
   delay(700);
@@ -267,6 +274,7 @@ void on_item3_selected(MenuItem * p_menu_item) {
   lcd.setCursor(0, 1);
   lcd.print("Delay On");
   DelayedStart = true;
+  EEPROM.write(1, (DelayedStart));
   delay(1500);
 }
 
@@ -275,6 +283,7 @@ void on_item4_selected(MenuItem * p_menu_item) {
   lcd.setCursor(0, 1);
   lcd.print("Delay Off");
   DelayedStart = false;
+  EEPROM.write(1, (DelayedStart));
   delay(1500);
 }
 
