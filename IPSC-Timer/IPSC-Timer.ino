@@ -241,6 +241,7 @@ void ResetTimer() {
 
 
 void DisplayTimer() {
+  lcd.clear();
   lcd.setFontSize(FONT_SIZE_MEDIUM);
   lcd.setCursor(0, 0);
   lcd.println((FirstShotTime), 2);
@@ -254,20 +255,21 @@ void DisplayTimer() {
   lcd.setCursor(XPos, 0);
   lcd.println(ShotCounter);
 
-  lcd.setCursor(80, 0);
+  lcd.setCursor(85, 0);
   lcd.println((BestSplitShotTime), 2);
 
   if (LatestShotTime < 10) {
-    XPos = 28;
+    XPos = 43;
   }
   else if (LatestShotTime < 100) {
-    XPos = 18;
+    XPos = 37;
   }
   else {
-    XPos = 8;
+    XPos = 34;
   }
   //lcd.setFontSize(FONT_SIZE_MEDIUM);
   lcd.setCursor(XPos, 4);
+  lcd.clearLine (4);
   lcd.println((LatestShotTime), 2);
   //  lcd.printLong((LatestShotTime)* 100); //Test of number only font
 }
