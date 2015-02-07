@@ -34,8 +34,8 @@ MenuItem mu2_mi4("..");
 
 // this constant won't change:
 const int DetectorPin = 2;
-//const int BuzzerPin = 8; //
-const int BuzzerPin = 13; //Quiet night-mode for testing while the family is asleep
+const int BuzzerPin = 8; //
+//const int BuzzerPin = 13; //Quiet night-mode for testing while the family is asleep
 
 // Variables will change:
 int ShotCounter = 0;
@@ -88,7 +88,10 @@ void setup() {
 
   lcd.begin();
   lcd.clear();
-  DisplayTimer() ;
+  
+  DisplayReady() ;
+  //State=2;
+  //delay(1000);
 }
 
 void loop() {
@@ -168,9 +171,6 @@ void loop() {
         DisplayReady();
       }
       break;
-    case 6: //Calibrate
-      DetectCalibrateShots();
-      break;
 
   } //End of switch-machine
 
@@ -208,15 +208,16 @@ void DetectShots() {
 }
 
 void DetectCalibrateShots() {
-  //  if (DetectorState != LastDetectorState) {
-  //    if (DetectorState == HIGH) {
-  //        lastDebounceTime = (millis();
-  //    }
-  //    if (DetectorState == LOW) {
-  //        debounceDelay = ((millis()-lastDebounceTime)+10);
-  //    }
-  //  }
-  //
+  if (DetectorState != LastDetectorState) {
+    if (DetectorState == HIGH) {
+      lastDebounceTime = (millis());
+    }
+    if (DetectorState == LOW) {
+      debounceDelay = ((millis() - lastDebounceTime) + 10);
+      ShotCounter++;
+    }
+  }
+
 }
 
 void StartTimer() {
@@ -225,10 +226,10 @@ void StartTimer() {
     DisplayStandby();
     delay (DelayedStartTime);
   }
-  StartTime = millis();
-  Beep();
   lcd.clear();
   DisplayTimer();
+  StartTime = millis();
+  Beep();
 }
 
 void ResetTimer() {
@@ -297,6 +298,12 @@ void DisplayStandby() {
   lcd.print("Stand By...");
 }
 
+void DisplayCalibration() {
+  lcd.setCursor(10, 3);
+  lcd.setFontSize(FONT_SIZE_MEDIUM);
+  lcd.print("Fire a round");
+}
+
 void displayMenu() {
   lcd.setCursor(0, 0);
   lcd.setFontSize(FONT_SIZE_SMALL);
@@ -351,7 +358,18 @@ void on_item7_selected(MenuItem * p_menu_item) {
   displayMenu();
 }
 void on_item8_selected(MenuItem * p_menu_item) {
-
+  lcd.clear();
+  DisplayCalibration();
+  do {
+    DetectorState = digitalRead(DetectorPin);
+    DetectCalibrateShots();
+    LastDetectorState = DetectorState;
+  }
+  while ((ShotCounter) < 2);
+  ShotCounter = 0;
+  lcd.clear(),
+  lcd.println (debounceDelay);
+  delay(1000);
 }
 
 void on_item9_selected(MenuItem * p_menu_item) {
