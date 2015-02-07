@@ -31,11 +31,14 @@ MenuItem mu2_mi1("+10 ms");
 MenuItem mu2_mi2("-10 ms");
 MenuItem mu2_mi3("Calibrate");
 MenuItem mu2_mi4("..");
+Menu mu3("Buzzer");
+MenuItem mu3_mi1("On");
+MenuItem mu3_mi2("Off");
+MenuItem mu3_mi3("..");
 
 // this constant won't change:
 const int DetectorPin = 2;
-const int BuzzerPin = 8; //
-//const int BuzzerPin = 13; //Quiet night-mode for testing while the family is asleep
+const int BuzzerPin = 8;
 
 // Variables will change:
 int ShotCounter = 0;
@@ -44,6 +47,7 @@ int LastDetectorState = 1;
 int TimerState = 0;
 int XPos = 0;
 int DelayedStart = EEPROM.read(1);
+int BuzzerEnabled = EEPROM.read(2);
 int DelayedStartTime = 3000;
 
 int interval = 700;
@@ -84,11 +88,15 @@ void setup() {
   mu2.add_item(&mu2_mi2, &on_item7_selected);
   mu2.add_item(&mu2_mi3, &on_item8_selected);
   mu2.add_item(&mu2_mi4, &on_item9_selected); //..
+  mm.add_menu(&mu3);
+  mu3.add_item(&mu3_mi1, &on_item10_selected);
+  mu3.add_item(&mu3_mi2, &on_item11_selected);
+  mu3.add_item(&mu3_mi3, &on_item5_selected); //..
   ms.set_root_menu(&mm);
 
   lcd.begin();
   lcd.clear();
-  
+
   DisplayReady() ;
   //State=2;
   //delay(1000);
@@ -106,7 +114,7 @@ void loop() {
       currentMillis = millis();
       if (currentMillis - previousMillis > interval) {
         previousMillis = currentMillis;
-        if (intervalState == LOW){
+        if (intervalState == LOW) {
           intervalState = HIGH;
           lcd.clear();
         }
@@ -157,11 +165,6 @@ void loop() {
         State = 0;
       break;
 
-      //    case 4: //intermediate state before Running in order to detect button release after switching state
-      //      StartTimer();
-      //      State = 5;
-      //      break;
-
     case 5: //Timer running!
       DetectShots();
       if (StartButton.pressedFor(LONG_PRESS)) {
@@ -172,7 +175,7 @@ void loop() {
       }
       break;
 
-  } //End of switch-machine
+  } //End of case switch-machine
 
   LastDetectorState = DetectorState;
 }
@@ -207,7 +210,7 @@ void DetectShots() {
   }
 }
 
-void DetectCalibrateShots() {
+void DetectCalibrationShots() {
   if (DetectorState != LastDetectorState) {
     if (DetectorState == HIGH) {
       lastDebounceTime = (millis());
@@ -240,6 +243,7 @@ void ResetTimer() {
   BestSplitShotTime = 0;
 }
 
+///////////////////////////////////////////////////// Display cunctions
 
 void DisplayTimer() {
   lcd.clear();
@@ -268,11 +272,9 @@ void DisplayTimer() {
   else {
     XPos = 34;
   }
-  //lcd.setFontSize(FONT_SIZE_MEDIUM);
   lcd.setCursor(XPos, 4);
   lcd.clearLine (4);
   lcd.println((LatestShotTime), 2);
-  //  lcd.printLong((LatestShotTime)* 100); //Test of number only font
 }
 
 void ClearEEPROM() {
@@ -280,10 +282,17 @@ void ClearEEPROM() {
     EEPROM.write(i, 0);
 }
 
+void SetDefault() {
+  EEPROM.write(1,1);
+  EEPROM.write(2,1);
+  }
+
 void Beep() {
-  digitalWrite(BuzzerPin, HIGH);
-  delay(700);
-  digitalWrite(BuzzerPin, LOW);
+  if (BuzzerEnabled == true) {
+    digitalWrite(BuzzerPin, HIGH);
+    delay(700);
+    digitalWrite(BuzzerPin, LOW);
+  }
 }
 
 void DisplayReady() {
@@ -326,7 +335,7 @@ void displayMenu() {
   }
 }
 
-// Menu callback function
+///////////////////////////////////////////////////// Menu callback functions
 void on_item3_selected(MenuItem * p_menu_item) {
   lcd.clear();
   lcd.setCursor(0, 1);
@@ -362,17 +371,37 @@ void on_item8_selected(MenuItem * p_menu_item) {
   DisplayCalibration();
   do {
     DetectorState = digitalRead(DetectorPin);
-    DetectCalibrateShots();
+    DetectCalibrationShots();
     LastDetectorState = DetectorState;
   }
   while ((ShotCounter) < 2);
   ShotCounter = 0;
-  lcd.clear(),
-  lcd.println (debounceDelay);
+  lcd.clear();
+  lcd.setCursor(0, 1);
+  lcd.print (debounceDelay);
+  lcd.print (" ms");
   delay(1000);
 }
 
 void on_item9_selected(MenuItem * p_menu_item) {
   ms.back();
   displayMenu();
+}
+
+void on_item10_selected(MenuItem * p_menu_item) {
+  lcd.clear();
+  lcd.setCursor(0, 1);
+  lcd.print("Buzzer On");
+  BuzzerEnabled = true;
+  EEPROM.write(2, (BuzzerEnabled));
+  delay(1500);
+}
+
+void on_item11_selected(MenuItem * p_menu_item) {
+  lcd.clear();
+  lcd.setCursor(0, 1);
+  lcd.print("Buzzer Off");
+  BuzzerEnabled = false;
+  EEPROM.write(2, (BuzzerEnabled));
+  delay(1500);
 }
