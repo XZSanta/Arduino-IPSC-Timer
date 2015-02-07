@@ -48,6 +48,7 @@ int TimerState = 0;
 int XPos = 0;
 int DelayedStart = EEPROM.read(1);
 int BuzzerEnabled = EEPROM.read(2);
+int DebounceDelay = EEPROM.read(3);    //"Deaf-time" in ms after registered shot
 int DelayedStartTime = 3000;
 
 int interval = 700;
@@ -58,7 +59,6 @@ int State = 0;
 // the following variables are long's because the time, measured in miliseconds,
 // will quickly become a bigger number than can be stored in an int.
 long lastDebounceTime = 0;  // The last time a shot was detected
-long debounceDelay = 10;    //"Deaf-time" in ms after registered shot
 long StartTime = 0;
 
 long currentMillis;
@@ -97,7 +97,7 @@ void setup() {
   lcd.begin();
   lcd.clear();
 
-  DisplayReady() ;
+  DisplayReady1() ;
   //State=2;
   //delay(1000);
 }
@@ -116,11 +116,11 @@ void loop() {
         previousMillis = currentMillis;
         if (intervalState == LOW) {
           intervalState = HIGH;
-          lcd.clear();
+          DisplayReady2();
         }
         else {
           intervalState = LOW;
-          DisplayReady();
+          DisplayReady1();
         }
       }
       if (StartButton.wasReleased()) {
@@ -156,7 +156,7 @@ void loop() {
       if (StartButton.pressedFor(LONG_PRESS)) {
         State = 3;
         lcd.clear();
-        DisplayReady();
+        DisplayReady1();
       }
       break;
 
@@ -171,7 +171,7 @@ void loop() {
         State = 3;
         lcd.clear();
         ResetTimer();
-        DisplayReady();
+        DisplayReady1();
       }
       break;
 
@@ -184,7 +184,7 @@ void DetectShots() {
   if (DetectorState != LastDetectorState) {
     if (millis() > lastDebounceTime) {
       if (DetectorState == HIGH) {
-        lastDebounceTime = (millis() + debounceDelay);
+        lastDebounceTime = (millis() + DebounceDelay);
 
         LatestShotTime = (float((millis() - StartTime)) / 1000);
         ShotCounter++;
@@ -216,7 +216,8 @@ void DetectCalibrationShots() {
       lastDebounceTime = (millis());
     }
     if (DetectorState == LOW) {
-      debounceDelay = ((millis() - lastDebounceTime) + 10);
+      DebounceDelay = ((millis() - lastDebounceTime) + 10);
+      EEPROM.write(3, (DebounceDelay));
       ShotCounter++;
     }
   }
@@ -241,6 +242,25 @@ void ResetTimer() {
   FirstShotTime = 0;
   SplitShotTime = 0;
   BestSplitShotTime = 0;
+}
+
+void ClearEEPROM() {
+  for (int i = 0; i < 512; i++)
+    EEPROM.write(i, 0);
+}
+
+void SetDefault() {
+  EEPROM.write(1, 1);
+  EEPROM.write(2, 1);
+  EEPROM.write(3, 10);
+}
+
+void Beep() {
+  if (BuzzerEnabled == true) {
+    digitalWrite(BuzzerPin, HIGH);
+    delay(700);
+    digitalWrite(BuzzerPin, LOW);
+  }
 }
 
 ///////////////////////////////////////////////////// Display cunctions
@@ -277,28 +297,16 @@ void DisplayTimer() {
   lcd.println((LatestShotTime), 2);
 }
 
-void ClearEEPROM() {
-  for (int i = 0; i < 512; i++)
-    EEPROM.write(i, 0);
-}
-
-void SetDefault() {
-  EEPROM.write(1,1);
-  EEPROM.write(2,1);
-  }
-
-void Beep() {
-  if (BuzzerEnabled == true) {
-    digitalWrite(BuzzerPin, HIGH);
-    delay(700);
-    digitalWrite(BuzzerPin, LOW);
-  }
-}
-
-void DisplayReady() {
+void DisplayReady1() {
   lcd.setCursor(34, 3);
   lcd.setFontSize(FONT_SIZE_MEDIUM);
   lcd.print("READY...");
+}
+
+void DisplayReady2() {
+  lcd.setCursor(34, 3);
+  lcd.setFontSize(FONT_SIZE_MEDIUM);
+  lcd.print("READY    ");
 }
 
 void DisplayStandby() {
@@ -378,7 +386,7 @@ void on_item8_selected(MenuItem * p_menu_item) {
   ShotCounter = 0;
   lcd.clear();
   lcd.setCursor(0, 1);
-  lcd.print (debounceDelay);
+  lcd.print (DebounceDelay);
   lcd.print (" ms");
   delay(1000);
 }
