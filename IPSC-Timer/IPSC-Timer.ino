@@ -174,12 +174,26 @@ void loop() {
     case 5: //Timer running!
       DetectShots();
       if (StartButton.pressedFor(LONG_PRESS)) {
+        State = 6;
+        lcd.clear();
+//        ResetTimer();
+        DisplayReview();
+      }
+      break;
+    
+   case 6: //intermediate state before Review in order to detect button release after switching state
+      if (StartButton.wasReleased())
+        State = 7;
+      break;
+      
+   case 7: //Review
+     if (StartButton.pressedFor(LONG_PRESS)) {
         State = 3;
         lcd.clear();
         ResetTimer();
         DisplayReady1();
       }
-      break;
+     break;
 
   } //End of case switch-machine
 
@@ -287,6 +301,41 @@ void DisplayTimer() {
   lcd.println(ShotCounter);
 
   lcd.setCursor(85, 0);
+  lcd.println((BestSplitShotTime), 2);
+
+  if (LatestShotTime < 10) {
+    XPos = 43;
+  }
+  else if (LatestShotTime < 100) {
+    XPos = 37;
+  }
+  else {
+    XPos = 34;
+  }
+  lcd.setCursor(XPos, 4);
+  lcd.clearLine (4);
+  lcd.println((LatestShotTime), 2);
+}
+
+void DisplayReview() {
+  lcd.clear();
+  lcd.setFontSize(FONT_SIZE_SMALL);
+  lcd.setCursor(40, 0);
+  lcd.println("Review");
+  lcd.setFontSize(FONT_SIZE_MEDIUM);
+  lcd.setCursor(0, 1);
+  lcd.println((FirstShotTime), 2);
+
+  if (ShotCounter < 10) {
+    XPos = 58;
+  }
+  else {
+    XPos = 51;
+  }
+  lcd.setCursor(XPos, 1);
+  lcd.println(ShotCounter);
+
+  lcd.setCursor(85, 1);
   lcd.println((BestSplitShotTime), 2);
 
   if (LatestShotTime < 10) {
