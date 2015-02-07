@@ -35,6 +35,9 @@ Menu mu3("Buzzer");
 MenuItem mu3_mi1("On");
 MenuItem mu3_mi2("Off");
 MenuItem mu3_mi3("..");
+Menu mu4("Default Settings");
+MenuItem mu4_mi1("Reset device");
+MenuItem mu4_mi2("..");
 
 // this constant won't change:
 const int DetectorPin = 2;
@@ -92,6 +95,9 @@ void setup() {
   mu3.add_item(&mu3_mi1, &on_item10_selected);
   mu3.add_item(&mu3_mi2, &on_item11_selected);
   mu3.add_item(&mu3_mi3, &on_item5_selected); //..
+  mm.add_menu(&mu4);
+  mu4.add_item(&mu4_mi1, &on_item12_selected);
+  mu4.add_item(&mu4_mi2, &on_item5_selected); //..
   ms.set_root_menu(&mm);
 
   lcd.begin();
@@ -249,7 +255,7 @@ void ClearEEPROM() {
     EEPROM.write(i, 0);
 }
 
-void SetDefault() {
+void SetDefaults() {
   EEPROM.write(1, 1);
   EEPROM.write(2, 1);
   EEPROM.write(3, 10);
@@ -412,4 +418,9 @@ void on_item11_selected(MenuItem * p_menu_item) {
   BuzzerEnabled = false;
   EEPROM.write(2, (BuzzerEnabled));
   delay(1500);
+}
+
+void on_item12_selected(MenuItem * p_menu_item) {
+  ClearEEPROM();
+  SetDefaults();
 }
