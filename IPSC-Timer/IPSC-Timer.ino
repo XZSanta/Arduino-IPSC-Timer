@@ -135,7 +135,6 @@ void loop() {
       }
       else if (StartButton.pressedFor(LONG_PRESS)) {
         State = 1;
-        lcd.clear();
         displayMenu();
       }
       break;
@@ -179,6 +178,9 @@ void loop() {
 //        ResetTimer();
         DisplayReview();
       }
+      if (StartButton.wasReleased()) {
+        //lcd.backlight();
+        }
       break;
     
    case 6: //intermediate state before Review in order to detect button release after switching state
@@ -252,6 +254,7 @@ void StartTimer() {
   }
   lcd.clear();
   DisplayTimer();
+  lastDebounceTime = (millis()) + 750; //To make sure buzzer doesn't trigger at shot
   StartTime = millis();
   Beep();
 }
@@ -377,6 +380,7 @@ void DisplayCalibration() {
 }
 
 void displayMenu() {
+  lcd.clear();
   lcd.setCursor(0, 0);
   lcd.setFontSize(FONT_SIZE_SMALL);
   Menu const* cp_menu = ms.get_current_menu();
