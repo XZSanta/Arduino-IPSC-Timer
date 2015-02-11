@@ -1,6 +1,6 @@
 #include <Wire.h>
 #include <Button.h> // Jack Christensens Button library https://github.com/JChristensen/Button
-#include <MenuSystem.h>
+#include <MenuSystem.h> // https://github.com/jonblack/arduino-menusystem
 #include <MicroLCD.h> //https://github.com/stanleyhuangyc/MultiLCD
 #include <EEPROM.h>
 
