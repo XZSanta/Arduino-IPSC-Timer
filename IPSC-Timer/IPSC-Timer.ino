@@ -1,7 +1,7 @@
 #include <Wire.h>
 #include <Button.h> // Jack Christensens Button library https://github.com/JChristensen/Button
 #include <MenuSystem.h>
-#include <MicroLCD.h>
+#include <MicroLCD.h> //https://github.com/stanleyhuangyc/MultiLCD
 #include <EEPROM.h>
 
 // Nano SDA = A4
@@ -45,6 +45,7 @@ const int BuzzerPin = 8;
 
 // Variables will change:
 int ShotCounter = 0;
+int TotalShots = 0;
 int DetectorState = 0;
 int LastDetectorState = 1;
 int TimerState = 0;
@@ -63,9 +64,11 @@ int State = 0;
 // will quickly become a bigger number than can be stored in an int.
 long lastDebounceTime = 0;  // The last time a shot was detected
 long StartTime = 0;
+long CurrentShotTime = 0;
 
 long currentMillis;
 long previousMillis;
+long ShotsArray[99];
 
 float LatestShotTime = 0;
 float FirstShotTime = 0;
@@ -174,28 +177,42 @@ void loop() {
       DetectShots();
       if (StartButton.pressedFor(LONG_PRESS)) {
         State = 6;
-        lcd.clear();
-//        ResetTimer();
+        //lcd.clear();
+        TotalShots = (ShotCounter);
         DisplayReview();
       }
       if (StartButton.wasReleased()) {
         //lcd.backlight();
-        }
+      }
       break;
-    
-   case 6: //intermediate state before Review in order to detect button release after switching state
+
+    case 6: //intermediate state before Review in order to detect button release after switching state
       if (StartButton.wasReleased())
         State = 7;
       break;
-      
-   case 7: //Review
-     if (StartButton.pressedFor(LONG_PRESS)) {
+
+    case 7: //Review
+      if ((DownButton.wasPressed()) and ((ShotCounter) > 1)) {
+        ShotCounter --;
+        CurrentShotTime = ShotsArray[((ShotCounter) - 1)];
+        PrevShotTime = ShotsArray[((ShotCounter) - 2)];
+        Calculate();
+        DisplayReview();
+      }
+      if ((UpButton.wasPressed()) and ((ShotCounter) < (TotalShots))) {
+        ShotCounter ++;
+        CurrentShotTime = ShotsArray[((ShotCounter) - 1)];
+        PrevShotTime = ShotsArray[((ShotCounter) - 2)];
+        Calculate();
+        DisplayReview();
+      }
+      if (StartButton.pressedFor(LONG_PRESS)) {
         State = 3;
         lcd.clear();
         ResetTimer();
         DisplayReady1();
       }
-     break;
+      break;
 
   } //End of case switch-machine
 
@@ -206,31 +223,40 @@ void DetectShots() {
   if (DetectorState != LastDetectorState) {
     if (millis() > lastDebounceTime) {
       if (DetectorState == HIGH) {
-        lastDebounceTime = (millis() + DebounceDelay);
-
-        LatestShotTime = (float((millis() - StartTime)) / 1000);
+        CurrentShotTime = millis();
+        lastDebounceTime = (CurrentShotTime + DebounceDelay);
         ShotCounter++;
-
-        if (ShotCounter == 1) { //Only on first shot
-          FirstShotTime = LatestShotTime;
-        }
-
-        if (ShotCounter > 1) {
-          SplitShotTime = (LatestShotTime - PrevShotTime);
-          if (ShotCounter == 2) {
-            BestSplitShotTime = SplitShotTime;
-          }
-          if ((SplitShotTime) < (BestSplitShotTime)) {
-            BestSplitShotTime = SplitShotTime;
-          }
-        }
-
+        ShotsArray[((ShotCounter) - 1)] = (CurrentShotTime);
+        Calculate();
         DisplayTimer();
-        PrevShotTime = LatestShotTime;
+        PrevShotTime = CurrentShotTime;
       }
     }
   }
 }
+
+void Calculate() {
+  LatestShotTime = (float(((CurrentShotTime) - StartTime)) / 1000);
+  //ShotCounter++;
+
+  if (ShotCounter == 1) { //Only on first shot
+    FirstShotTime = LatestShotTime;
+    PrevShotTime = StartTime;
+  }
+
+
+
+
+  SplitShotTime = (float(CurrentShotTime - PrevShotTime) / 1000);
+
+  if (ShotCounter == 2) { //Is thiss needed?
+    BestSplitShotTime = SplitShotTime;
+  }
+  if ((SplitShotTime) < (BestSplitShotTime)) {
+    BestSplitShotTime = SplitShotTime;
+  }
+}
+
 
 void DetectCalibrationShots() {
   if (DetectorState != LastDetectorState) {
@@ -248,11 +274,9 @@ void DetectCalibrationShots() {
 
 void StartTimer() {
   if (DelayedStart == true) {
-    lcd.clear();
     DisplayStandby();
     delay (DelayedStartTime);
   }
-  lcd.clear();
   DisplayTimer();
   lastDebounceTime = (millis()) + 750; //To make sure buzzer doesn't trigger at shot
   StartTime = millis();
@@ -286,7 +310,7 @@ void Beep() {
   }
 }
 
-///////////////////////////////////////////////////// Display cunctions
+///////////////////////////////////////////////////// Display fcunctions
 
 void DisplayTimer() {
   lcd.clear();
@@ -339,7 +363,7 @@ void DisplayReview() {
   lcd.println(ShotCounter);
 
   lcd.setCursor(85, 1);
-  lcd.println((BestSplitShotTime), 2);
+  lcd.println((SplitShotTime), 2);
 
   if (LatestShotTime < 10) {
     XPos = 43;
@@ -368,12 +392,14 @@ void DisplayReady2() {
 }
 
 void DisplayStandby() {
+  lcd.clear();
   lcd.setCursor(10, 3);
   lcd.setFontSize(FONT_SIZE_MEDIUM);
   lcd.print("Stand By...");
 }
 
 void DisplayCalibration() {
+  lcd.clear();
   lcd.setCursor(10, 3);
   lcd.setFontSize(FONT_SIZE_MEDIUM);
   lcd.print("Fire a round");
@@ -434,7 +460,6 @@ void on_item7_selected(MenuItem * p_menu_item) {
   displayMenu();
 }
 void on_item8_selected(MenuItem * p_menu_item) {
-  lcd.clear();
   DisplayCalibration();
   do {
     DetectorState = digitalRead(DetectorPin);
